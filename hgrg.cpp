@@ -12,6 +12,7 @@
 
 #include <cstdio>
 #include <cmath>
+#include <ctime>
 
 #include "shaders.hpp"
 
@@ -26,6 +27,7 @@
 
 //float signum(float a) { (a>0)-(a<0); }
 
+struct V4f { float x, y, z, w; };
 struct VAOdat { GLuint vao; int disp; VAOdat(GLuint _v, int _d) { vao=_v; disp=_d; } };
 struct PState { glm::vec3 pos; glm::vec3 vel; glm::vec3 acc;
   glm::vec3 av; glm::vec3 torque;
@@ -57,8 +59,14 @@ int saw(void *o_buf, void *, unsigned int n_frames, double, RtAudioStreamStatus 
   *buffer += sin(2*M_PI*(*d)/SAMPLE_RATE); buffer++; return 0; }
 void e_call(RtAudioError::Type t, const std::string &errorText) { return; }
 
+void reset_ssbo(int p_amt) {
+  V4f *pos_v = (V4f *) glMapBufferRange(GL_SHADER_STORAGE_BUFFER,0,p_amt*sizeof(V4f),GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+  for(int i=0;i<p_amt;i++) { pos_v[i].x = pos_v[i].y = pos_v[i].z = 0.f;
+    pos_v[i].w = 1.f; }
+  glUnmapBuffer(GL_SHADER_STORAGE_BUFFER); }
+
 // WARNING: edits velocity of object rather than acceleration.
-void handle_input(PState &s) { glm::vec3 head = glm::vec3(0,0,0);
+void handle_input(PState &s, glm::mat4x4 *view) { glm::vec3 head = glm::vec3(0,0,0);
   if(sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
     head += glm::vec3(0,1,0); }
   if(sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
@@ -70,12 +78,20 @@ void handle_input(PState &s) { glm::vec3 head = glm::vec3(0,0,0);
   glm::vec3 nhead = s.head+head;
   if(length(nhead)>0) { s.head = glm::normalize(s.head+head); } else { s.head = nhead; }
 
+  if(sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) {
+    *view = rotate(glm::mat4(1.),(float)0.01,glm::vec3(1,0,0))*(*view); }
+  if(sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) {
+    *view = rotate(glm::mat4(1.),(float)-0.01,glm::vec3(1,0,0))*(*view); }
+  if(sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) {
+    *view = rotate(glm::mat4(1.),(float)0.01,glm::vec3(0,1,0))*(*view); }
+  if(sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
+    *view = rotate(glm::mat4(1.),(float)-0.01,glm::vec3(0,1,0))*(*view); }
   if(length(head)) { s.vel += 0.001f*s.head; }
   update(s); }
 
 int main() { sf::ContextSettings settings;
   settings.depthBits = 24; settings.stencilBits = 8; settings.antialiasingLevel = 0;
-  settings.majorVersion = 3; settings.minorVersion = 3;
+  settings.majorVersion = 4; settings.minorVersion = 3;
   sf::Window window(sf::VideoMode(1280,800), "rgrg", sf::Style::Default, settings);
   window.setVerticalSyncEnabled(true); glewExperimental = GL_TRUE;
   glm::mat4 projection = gl_init(&window);
@@ -131,11 +147,13 @@ int main() { sf::ContextSettings settings;
 
   PState s(glm::vec3(0,0,0));
   int t = 0;
+  int_set(default_program,3,"vert_amt");
   for(bool r = true;r;t++) {
     sf::Event e; while(window.pollEvent(e)) { if(e.type==sf::Event::Closed) { r=false; } }
-    handle_input(s);
+    handle_input(s,&view);
     mvp_set(default_program,model,view,projection); vec_set(default_program,s.pos,"pos");
     float_set(default_program,atan2(s.head.y,s.head.x),"tht");
+    int_set(default_program,time(NULL)+t,"seed");
     paint(default_program,vd); window.display(); }
   glDeleteVertexArrays(1,&vd.vao);
   return 0; }

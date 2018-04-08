@@ -5,22 +5,28 @@
 //     : refer to the entire object), then a polygon approximating the object can be drawn with
 //     : the same color as clear color and place slightly behind the set of points.
 
-static const GLchar *dvs = "#version 330\n"
+// TODO: test PRNG.
+
+static const GLchar *dvs = "#version 430\n"
   "layout (location = 0) in vec3 position;\n"
   "layout (location = 1) in vec3 color;\n"
   "layout (location = 2) in vec3 norm;\n"
-  "out vec3 frag_norm;\n"
+  "out vec3 frag_norm; out vec3 frag_col;\n"
   //"uniform vec3 disp;\n"
   "uniform mat4 model; uniform mat4 view; uniform mat4 projection;\n"
-  "uniform vec3 pos; uniform float tht;\n"
+  "uniform vec3 pos; uniform float tht; uniform int seed; uniform int vert_amt;\n"
+  // seed will be the current time + vertex_amt*instance_id + vertex_id.
   "vec3 rot(vec3 a,float tht) { return a*mat3("
   "  cos(tht),-sin(tht),0, sin(tht),cos(tht),0, 0,0,1); }\n"
+  // PRNG using Galoi LFSR [1,2^32-1].
+  "int lcg_rand(int x) { return (x >> 1)^(-(x & 1) & 0x80200003); }\n"
   "void main() { frag_norm = norm; vec3 np = rot(vec3(gl_InstanceID/500.,0,0),gl_InstanceID/3.14159265)+position;\n"
   "gl_Position = projection*view*model*vec4(rot(np,tht)+pos,1.); }\0";
-static const GLchar *dfs = "#version 330\n"
-  "in vec3 frag_norm;\n"
+static const GLchar *dfs = "#version 430\n"
+  "out vec4 scolor;\n"
+  "in vec3 frag_norm; in vec3 frag_col;\n"
   "void main() { vec3 light = -vec3(0.,-1.,0.); vec3 col = vec3(0.1,0.5,0.7);\n"
-  "  gl_FragColor = vec4(1.,0,0,1.); }\0";
+  "  scolor = vec4(1.,0,0,1.); }\0";
 
 GLuint create_program(const GLchar *vsh, const GLchar *fsh) { GLuint vs;
   vs = glCreateShader(GL_VERTEX_SHADER);
@@ -71,3 +77,8 @@ void float_set(GLuint prog, float a, std::string name) {
 
   GLint _name = glGetUniformLocation(prog,name.c_str());
   glUniform1f(_name,a); }
+void int_set(GLuint prog, int a, std::string name) {
+  glUseProgram(prog);
+
+  GLint _name = glGetUniformLocation(prog,name.c_str());
+  glUniform1i(_name,a); }
