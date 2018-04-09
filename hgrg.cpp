@@ -46,13 +46,17 @@ glm::mat4 gl_init(sf::Window *window) { glEnable(GL_DEPTH_TEST); glDepthMask(GL_
   float ratio = window->getSize().x/window->getSize().y;
   return glm::perspective(glm::radians(45.f),4.f/3.f,0.1f,100.f); }
 
-void paint(GLuint prog, GLuint compute_prog, int pc, VAOdat vd) {
+void paint(GLuint prog, GLuint compute_prog, int pc, VAOdat vd, GLuint ssbo) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glUseProgram(compute_prog);
   glDispatchCompute(pc/16,1,1);
   glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
   glUseProgram(prog); glGetError();
-  glBindVertexArray(vd.vao);
+  //glBindVertexArray(vd.vao);
+  glBindBuffer(GL_ARRAY_BUFFER,ssbo); 
+  GLuint pos_attrib = 0; //GLuint col_attrib = 1; //GLuint norm_attrib = 2;
+  glEnableVertexAttribArray(pos_attrib);
+  glVertexAttribPointer(pos_attrib,3,GL_FLOAT,GL_FALSE,0,0);
   /*d_rows(vd,3,1,GL_POINTS);*/ glDrawArrays(GL_POINTS,0,pc); }
 
 int saw(void *o_buf, void *, unsigned int n_frames, double, RtAudioStreamStatus status
@@ -133,8 +137,9 @@ int main() { sf::ContextSettings settings;
    ,1,0,0, 1,0,0, 0,0,-1
    ,0,1,0, 1,0,0, 0,0,-1 };
   std::vector<float> dat(datarr, datarr+sizeof(datarr)/sizeof(float));*/
-  std::vector<V4f> dat(1500,(V4f){ {0,0,0} });
+  std::vector<V4f> dat(1504,(V4f){ {0,0,0} });
 
+  // cannot use VAO since buffer must be rebound as GL_VERTEX_ARRAY in draw calls.
   GLuint vao; glGenVertexArrays(1,&vao);
   glBindVertexArray(vao);
   GLuint buf; glGenBuffers(1,&buf);
@@ -143,9 +148,9 @@ int main() { sf::ContextSettings settings;
   reset_ssbo(dat.size());
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buf);
 
-  GLuint pos_attrib = 0; //GLuint col_attrib = 1; //GLuint norm_attrib = 2;
+  /*GLuint pos_attrib = 0; //GLuint col_attrib = 1; //GLuint norm_attrib = 2;
   glEnableVertexAttribArray(pos_attrib);
-  glVertexAttribPointer(pos_attrib,3,GL_FLOAT,GL_FALSE,0,0);
+  glVertexAttribPointer(pos_attrib,3,GL_FLOAT,GL_FALSE,0,0);*/
   
   /*glEnableVertexAttribArray(col_attrib);
   glVertexAttribPointer(col_attrib,4,GL_FLOAT,GL_FALSE,sizeof(V4f)
@@ -163,10 +168,10 @@ int main() { sf::ContextSettings settings;
   for(bool r = true;r;t++) {
     sf::Event e; while(window.pollEvent(e)) { if(e.type==sf::Event::Closed) { r=false; } }
     handle_input(s,&view);
-    report_ssbo(dat.size());
+    //report_ssbo(dat.size());
     mvp_set(default_program,model,view,projection); vec_set(default_program,s.pos,"pos");
     float_set(default_program,atan2(s.head.y,s.head.x),"tht");
     int_set(default_program,time(NULL)+t,"seed");
-    paint(default_program,compute_program,1500,vd); window.display(); }
+    paint(default_program,compute_program,1500,vd,buf); window.display(); }
   glDeleteVertexArrays(1,&vd.vao);
   return 0; }
