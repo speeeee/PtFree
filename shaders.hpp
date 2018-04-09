@@ -6,11 +6,13 @@
 //     : the same color as clear color and place slightly behind the set of points.
 
 // TODO: test PRNG.
+// TODO: create compute shader.
+// TODO: change vertex shader to use V4f struct instead.
 
 static const GLchar *dvs = "#version 430\n"
   "layout (location = 0) in vec3 position;\n"
-  "layout (location = 1) in vec3 color;\n"
-  "layout (location = 2) in vec3 norm;\n"
+  //"layout (location = 1) in vec3 color;\n"
+  //"layout (location = 2) in vec3 norm;\n"
   "out vec3 frag_norm; out vec3 frag_col;\n"
   //"uniform vec3 disp;\n"
   "uniform mat4 model; uniform mat4 view; uniform mat4 projection;\n"
@@ -20,13 +22,21 @@ static const GLchar *dvs = "#version 430\n"
   "  cos(tht),-sin(tht),0, sin(tht),cos(tht),0, 0,0,1); }\n"
   // PRNG using Galoi LFSR [1,2^32-1].
   "int lcg_rand(int x) { return (x >> 1)^(-(x & 1) & 0x80200003); }\n"
-  "void main() { frag_norm = norm; vec3 np = rot(vec3(gl_InstanceID/500.,0,0),gl_InstanceID/3.14159265)+position;\n"
+  "void main() { vec3 np = rot(vec3(gl_InstanceID/500.,0,0),gl_InstanceID/3.14159265)+position;\n"
   "gl_Position = projection*view*model*vec4(rot(np,tht)+pos,1.); }\0";
 static const GLchar *dfs = "#version 430\n"
   "out vec4 scolor;\n"
-  "in vec3 frag_norm; in vec3 frag_col;\n"
+  //"in vec3 frag_norm; in vec3 frag_col;\n"
   "void main() { vec3 light = -vec3(0.,-1.,0.); vec3 col = vec3(0.1,0.5,0.7);\n"
   "  scolor = vec4(1.,0,0,1.); }\0";
+
+static const GLchar *dcs = "#version 430\n"
+  "layout (std140, binding = 0) buffer Pos {\n"
+  "  vec3 pos[]; };\n"
+  "layout (local_size_x = 16, local_size_y = 16) in;\n"
+  "void main() { uint id = gl_GlobalInvocationID.x;\n"
+  "  vec3 cpos = pos[id];\n"
+  "  pos[id] = cpos + vec3(0.1,0.,0.); }\n";
 
 GLuint create_program(const GLchar *vsh, const GLchar *fsh) { GLuint vs;
   vs = glCreateShader(GL_VERTEX_SHADER);
@@ -55,6 +65,24 @@ GLuint create_program(const GLchar *vsh, const GLchar *fsh) { GLuint vs;
   /*glBindAttribLocation(prog,0,"position");
   glBindAttribLocation(prog,1,"norm");*/ glLinkProgram(prog);
   glDeleteShader(vs); glDeleteShader(fs); return prog; }
+
+GLuint create_compute_program(const GLchar *csh) { GLuint cs;
+  cs = glCreateShader(GL_COMPUTE_SHADER);
+
+  glShaderSource(cs,1,&csh,NULL); glCompileShader(cs);
+  
+  GLint compiled = 0;
+  glGetShaderiv(cs,GL_COMPILE_STATUS,&compiled);
+  if(!compiled) { printf("Compute error:\n"); GLint mlen = 0;
+    glGetShaderiv(cs,GL_INFO_LOG_LENGTH, &mlen);
+    std::vector<GLchar> error_log(mlen);
+    glGetShaderInfoLog(cs,mlen,&mlen,&error_log[0]);
+    glDeleteShader(cs); printf("%s\n",&error_log[0]); }
+  GLuint prog; prog = glCreateProgram();
+  glAttachShader(prog,cs);
+  /*glBindAttribLocation(prog,0,"position");
+  glBindAttribLocation(prog,1,"norm");*/ glLinkProgram(prog);
+  glDeleteShader(cs); return prog; }
 
 void mvp_set(GLuint prog, glm::mat4 model, glm::mat4 view, glm::mat4 projection) {
   glUseProgram(prog);

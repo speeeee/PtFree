@@ -17,7 +17,7 @@
 #include "shaders.hpp"
 
 #define PI 3.1415926535
-#define STRIDE (9)
+#define STRIDE (7)
 
 #define SAMPLE_RATE (44100)
 #define FRAME_RATE (60)
@@ -27,7 +27,7 @@
 
 //float signum(float a) { (a>0)-(a<0); }
 
-struct V4f { float x, y, z, w; };
+struct V4f { float pos[3]; /*float col[4]*/; };
 struct VAOdat { GLuint vao; int disp; VAOdat(GLuint _v, int _d) { vao=_v; disp=_d; } };
 struct PState { glm::vec3 pos; glm::vec3 vel; glm::vec3 acc;
   glm::vec3 av; glm::vec3 torque;
@@ -46,10 +46,14 @@ glm::mat4 gl_init(sf::Window *window) { glEnable(GL_DEPTH_TEST); glDepthMask(GL_
   float ratio = window->getSize().x/window->getSize().y;
   return glm::perspective(glm::radians(45.f),4.f/3.f,0.1f,100.f); }
 
-void paint(GLuint prog, VAOdat vd) {
+void paint(GLuint prog, GLuint compute_prog, int pc, VAOdat vd) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glUseProgram(prog); glBindVertexArray(vd.vao);
-  /*d_rows(vd,3,1,GL_POINTS);*/ glDrawArraysInstanced(GL_POINTS,0,3,500); }
+  glUseProgram(compute_prog);
+  glDispatchCompute(pc/16,1,1);
+  glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
+  glUseProgram(prog); glGetError();
+  glBindVertexArray(vd.vao);
+  /*d_rows(vd,3,1,GL_POINTS);*/ glDrawArrays(GL_POINTS,0,pc); }
 
 int saw(void *o_buf, void *, unsigned int n_frames, double, RtAudioStreamStatus status
        ,void *data) {
@@ -61,8 +65,12 @@ void e_call(RtAudioError::Type t, const std::string &errorText) { return; }
 
 void reset_ssbo(int p_amt) {
   V4f *pos_v = (V4f *) glMapBufferRange(GL_SHADER_STORAGE_BUFFER,0,p_amt*sizeof(V4f),GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
-  for(int i=0;i<p_amt;i++) { pos_v[i].x = pos_v[i].y = pos_v[i].z = 0.f;
-    pos_v[i].w = 1.f; }
+  for(int i=0;i<p_amt;i++) { pos_v[i].pos[0] = pos_v[i].pos[1] = pos_v[i].pos[2] = 0.f; }
+  glUnmapBuffer(GL_SHADER_STORAGE_BUFFER); }
+
+void report_ssbo(int p_amt) {
+  V4f *pos_v = (V4f *) glMapBufferRange(GL_SHADER_STORAGE_BUFFER,0,p_amt*sizeof(V4f),GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+  printf("pos 0: %g,%g,%g\n", pos_v[0].pos[0],pos_v[0].pos[1],pos_v[0].pos[2]);
   glUnmapBuffer(GL_SHADER_STORAGE_BUFFER); }
 
 // WARNING: edits velocity of object rather than acceleration.
@@ -118,42 +126,47 @@ int main() { sf::ContextSettings settings;
 
   GLuint default_program = create_program(dvs,dfs);
   mvp_set(default_program,model,view,projection);
+  GLuint compute_program = create_compute_program(dcs);
 
-  float datarr[] {
+  /*float datarr[] {
     0,0,0, 1,0,0, 0,0,-1
    ,1,0,0, 1,0,0, 0,0,-1
    ,0,1,0, 1,0,0, 0,0,-1 };
-  std::vector<float> dat(datarr, datarr+sizeof(datarr)/sizeof(float));
+  std::vector<float> dat(datarr, datarr+sizeof(datarr)/sizeof(float));*/
+  std::vector<V4f> dat(1500,(V4f){ {0,0,0} });
 
   GLuint vao; glGenVertexArrays(1,&vao);
   glBindVertexArray(vao);
   GLuint buf; glGenBuffers(1,&buf);
-  glBindBuffer(GL_ARRAY_BUFFER,buf);
-  glBufferData(GL_ARRAY_BUFFER,dat.size()*sizeof(float),&dat[0],GL_STATIC_DRAW);
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER,buf);
+  glBufferData(GL_SHADER_STORAGE_BUFFER,dat.size()*sizeof(V4f),NULL,GL_STATIC_DRAW);
+  reset_ssbo(dat.size());
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buf);
 
-  GLuint pos_attrib = 0; GLuint col_attrib = 1; GLuint norm_attrib = 2;
+  GLuint pos_attrib = 0; //GLuint col_attrib = 1; //GLuint norm_attrib = 2;
   glEnableVertexAttribArray(pos_attrib);
-  glVertexAttribPointer(pos_attrib,3,GL_FLOAT,GL_FALSE,STRIDE*sizeof(GL_FLOAT),0);
+  glVertexAttribPointer(pos_attrib,3,GL_FLOAT,GL_FALSE,0,0);
   
-  glEnableVertexAttribArray(col_attrib);
-  glVertexAttribPointer(col_attrib,3,GL_FLOAT,GL_FALSE,STRIDE*sizeof(GL_FLOAT)
-    ,(const GLvoid *)(3*sizeof(GL_FLOAT)));
+  /*glEnableVertexAttribArray(col_attrib);
+  glVertexAttribPointer(col_attrib,4,GL_FLOAT,GL_FALSE,sizeof(V4f)
+    ,(const GLvoid *)(3*sizeof(GL_FLOAT)));*/
   
-  glEnableVertexAttribArray(norm_attrib);
+  /*glEnableVertexAttribArray(norm_attrib);
   glVertexAttribPointer(norm_attrib,3,GL_FLOAT,GL_FALSE,STRIDE*sizeof(GL_FLOAT)
-    ,(const GLvoid *)(6*sizeof(GL_FLOAT)));
+    ,(const GLvoid *)(6*sizeof(GL_FLOAT)));*/
 
   auto vd = VAOdat(vao,0);
 
   PState s(glm::vec3(0,0,0));
   int t = 0;
-  int_set(default_program,3,"vert_amt");
+  //int_set(default_program,3,"vert_amt");
   for(bool r = true;r;t++) {
     sf::Event e; while(window.pollEvent(e)) { if(e.type==sf::Event::Closed) { r=false; } }
     handle_input(s,&view);
+    report_ssbo(dat.size());
     mvp_set(default_program,model,view,projection); vec_set(default_program,s.pos,"pos");
     float_set(default_program,atan2(s.head.y,s.head.x),"tht");
     int_set(default_program,time(NULL)+t,"seed");
-    paint(default_program,vd); window.display(); }
+    paint(default_program,compute_program,1500,vd); window.display(); }
   glDeleteVertexArrays(1,&vd.vao);
   return 0; }
