@@ -23,20 +23,27 @@ static const GLchar *dvs = "#version 430\n"
   // PRNG using Galoi LFSR [1,2^32-1].
   "int lcg_rand(int x) { return (x >> 1)^(-(x & 1) & 0x80200003); }\n"
   "void main() { vec3 np = rot(vec3(gl_InstanceID/500.,0,0),gl_InstanceID/3.14159265)+position;\n"
-  "gl_Position = projection*view*model*vec4(rot(np,tht)+pos,1.); }\0";
+  //"gl_Position = projection*view*model*vec4(rot(np,tht)+pos,1.); }\0";
+  "gl_Position = projection*view*model*vec4(position,1.); }\0";
 static const GLchar *dfs = "#version 430\n"
   "out vec4 scolor;\n"
   //"in vec3 frag_norm; in vec3 frag_col;\n"
   "void main() { vec3 light = -vec3(0.,-1.,0.); vec3 col = vec3(0.1,0.5,0.7);\n"
   "  scolor = vec4(1.,0,0,1.); }\0";
 
+// NOTE: MAX_COMPUTE_WORK_GROUP_INVOCATIONS = 1792
 static const GLchar *dcs = "#version 430\n"
   "layout (std140, binding = 0) buffer Pos {\n"
-  "  vec3 pos[]; };\n"
-  "layout (local_size_x = 16, local_size_y = 16) in;\n"
+  "  vec4 pos[]; };\n"
+  "layout (local_size_x = 16) in;\n"
+  "uniform int seed;\n"
+  "int lcg_rand(int x) { return (x >> 1)^(-(x & 1) & 0x80200003); }\n"
   "void main() { uint id = gl_GlobalInvocationID.x;\n"
-  "  vec3 cpos = pos[id];\n"
-  "  pos[id] = cpos + vec3(0.1,0.,0.); }\n";
+  "  int init_rand = lcg_rand(int(id)+seed);\n"
+  "  vec4 cpos = pos[id];\n"
+  "  int r2 = lcg_rand(init_rand); float tht = float(r2%360)*3.14159265/180.;\n"
+  "  vec4 npos = vec4(0.01*cos(tht),0.01*sin(tht),0.,0.);\n"
+  "  pos[id] = cpos + npos; }\n";
 
 GLuint create_program(const GLchar *vsh, const GLchar *fsh) { GLuint vs;
   vs = glCreateShader(GL_VERTEX_SHADER);

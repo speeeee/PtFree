@@ -19,6 +19,8 @@
 #define PI 3.1415926535
 #define STRIDE (7)
 
+#define PARTICLE_AMT (1504)
+
 #define SAMPLE_RATE (44100)
 #define FRAME_RATE (60)
 //#define FRAME_COUNT (15)
@@ -27,7 +29,7 @@
 
 //float signum(float a) { (a>0)-(a<0); }
 
-struct V4f { float pos[3]; /*float col[4]*/; };
+struct V4f { float pos[4]; /*float col[4];*/ };
 struct VAOdat { GLuint vao; int disp; VAOdat(GLuint _v, int _d) { vao=_v; disp=_d; } };
 struct PState { glm::vec3 pos; glm::vec3 vel; glm::vec3 acc;
   glm::vec3 av; glm::vec3 torque;
@@ -56,7 +58,8 @@ void paint(GLuint prog, GLuint compute_prog, int pc, VAOdat vd, GLuint ssbo) {
   glBindBuffer(GL_ARRAY_BUFFER,ssbo); 
   GLuint pos_attrib = 0; //GLuint col_attrib = 1; //GLuint norm_attrib = 2;
   glEnableVertexAttribArray(pos_attrib);
-  glVertexAttribPointer(pos_attrib,3,GL_FLOAT,GL_FALSE,0,0);
+  glVertexAttribPointer(pos_attrib,4,GL_FLOAT,GL_FALSE,0,0);
+  //glPointSize(16);
   /*d_rows(vd,3,1,GL_POINTS);*/ glDrawArrays(GL_POINTS,0,pc); }
 
 int saw(void *o_buf, void *, unsigned int n_frames, double, RtAudioStreamStatus status
@@ -74,7 +77,8 @@ void reset_ssbo(int p_amt) {
 
 void report_ssbo(int p_amt) {
   V4f *pos_v = (V4f *) glMapBufferRange(GL_SHADER_STORAGE_BUFFER,0,p_amt*sizeof(V4f),GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
-  printf("pos 0: %g,%g,%g\n", pos_v[0].pos[0],pos_v[0].pos[1],pos_v[0].pos[2]);
+  for(int i=0;i<16;i++) {
+    printf("pos %i: %g,%g,%g\n", i,pos_v[i].pos[0],pos_v[i].pos[1],pos_v[i].pos[2]); }
   glUnmapBuffer(GL_SHADER_STORAGE_BUFFER); }
 
 // WARNING: edits velocity of object rather than acceleration.
@@ -137,7 +141,7 @@ int main() { sf::ContextSettings settings;
    ,1,0,0, 1,0,0, 0,0,-1
    ,0,1,0, 1,0,0, 0,0,-1 };
   std::vector<float> dat(datarr, datarr+sizeof(datarr)/sizeof(float));*/
-  std::vector<V4f> dat(1504,(V4f){ {0,0,0} });
+  std::vector<V4f> dat(PARTICLE_AMT,(V4f){ {0,0,0,0} });
 
   // cannot use VAO since buffer must be rebound as GL_VERTEX_ARRAY in draw calls.
   GLuint vao; glGenVertexArrays(1,&vao);
@@ -172,6 +176,7 @@ int main() { sf::ContextSettings settings;
     mvp_set(default_program,model,view,projection); vec_set(default_program,s.pos,"pos");
     float_set(default_program,atan2(s.head.y,s.head.x),"tht");
     int_set(default_program,time(NULL)+t,"seed");
-    paint(default_program,compute_program,1500,vd,buf); window.display(); }
+    int_set(compute_program,time(NULL)+t,"seed");
+    paint(default_program,compute_program,PARTICLE_AMT,vd,buf); window.display(); }
   glDeleteVertexArrays(1,&vd.vao);
   return 0; }
