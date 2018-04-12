@@ -167,7 +167,7 @@ int main() { sf::ContextSettings settings;
   auto vd = VAOdat(vao,0);
 
   PState s(glm::vec3(0,0,0));
-  int t = 0;
+  int t = 0; srand(time(NULL));
   //int_set(default_program,3,"vert_amt");
   for(bool r = true;r;t++) {
     sf::Event e; while(window.pollEvent(e)) { if(e.type==sf::Event::Closed) { r=false; } }
@@ -176,7 +176,7 @@ int main() { sf::ContextSettings settings;
     mvp_set(default_program,model,view,projection); vec_set(default_program,s.pos,"pos");
     float_set(default_program,atan2(s.head.y,s.head.x),"tht");
     int_set(default_program,time(NULL)+t,"seed");
-    int_set(compute_program,time(NULL)+t,"seed");
+    float_set(compute_program,(float)(time(NULL)+t),"seed");
     paint(default_program,compute_program,PARTICLE_AMT,vd,buf); window.display(); }
   glDeleteVertexArrays(1,&vd.vao);
   return 0; }
