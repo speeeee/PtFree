@@ -83,7 +83,7 @@ void report_ssbo(int p_amt) {
   glUnmapBuffer(GL_SHADER_STORAGE_BUFFER); }
 
 // WARNING: edits velocity of object rather than acceleration.
-void handle_input(PState &s, glm::mat4x4 *view) { glm::vec3 head = glm::vec3(0,0,0);
+void handle_input(PState &s, glm::mat4x4 *view, glm::mat4x4 *model) { glm::vec3 head = glm::vec3(0,0,0);
   if(sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
     head += glm::vec3(0,1,0); }
   if(sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
@@ -96,13 +96,13 @@ void handle_input(PState &s, glm::mat4x4 *view) { glm::vec3 head = glm::vec3(0,0
   if(length(nhead)>0) { s.head = glm::normalize(s.head+head); } else { s.head = nhead; }
 
   if(sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) {
-    *view = rotate(glm::mat4(1.),(float)0.01,glm::vec3(1,0,0))*(*view); }
+    *model = rotate(glm::mat4(1.),(float)0.01,glm::vec3(1,0,0))*(*model); }
   if(sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) {
-    *view = rotate(glm::mat4(1.),(float)-0.01,glm::vec3(1,0,0))*(*view); }
+    *model = rotate(glm::mat4(1.),(float)-0.01,glm::vec3(1,0,0))*(*model); }
   if(sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) {
-    *view = rotate(glm::mat4(1.),(float)0.01,glm::vec3(0,1,0))*(*view); }
+    *model = rotate(glm::mat4(1.),(float)0.01,glm::vec3(0,1,0))*(*model); }
   if(sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
-    *view = rotate(glm::mat4(1.),(float)-0.01,glm::vec3(0,1,0))*(*view); }
+    *model = rotate(glm::mat4(1.),(float)-0.01,glm::vec3(0,1,0))*(*model); }
   if(length(head)) { s.vel += 0.001f*s.head; }
   update(s); }
 
@@ -172,7 +172,7 @@ int main() { sf::ContextSettings settings;
   //int_set(default_program,3,"vert_amt");
   for(bool r = true;r;t++) {
     sf::Event e; while(window.pollEvent(e)) { if(e.type==sf::Event::Closed) { r=false; } }
-    handle_input(s,&view);
+    handle_input(s,&view,&model);
     //report_ssbo(dat.size());
     mvp_set(default_program,model,view,projection); vec_set(default_program,s.pos,"pos");
     float_set(default_program,atan2(s.head.y,s.head.x),"tht");

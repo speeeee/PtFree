@@ -15,7 +15,7 @@ static const GLchar *dvs = "#version 430\n"
   //"layout (location = 2) in vec3 norm;\n"
   "out vec3 frag_norm; out vec3 frag_col;\n"
   //"uniform vec3 disp;\n"
-  "uniform mat4 model; uniform mat4 view; uniform mat4 projection;\n"
+  "uniform mat4 model; uniform mat4 view; uniform mat4 projection; uniform mat4 mvp;\n"
   "uniform vec3 pos; uniform float tht; uniform int seed; uniform int vert_amt;\n"
   // seed will be the current time + vertex_amt*instance_id + vertex_id.
   "vec3 rot(vec3 a,float tht) { return a*mat3("
@@ -24,7 +24,7 @@ static const GLchar *dvs = "#version 430\n"
   "int lcg_rand(int x) { return (x >> 1)^(-(x & 1) & 0x80200003); }\n"
   "void main() { vec3 np = rot(vec3(gl_InstanceID/500.,0,0),gl_InstanceID/3.14159265)+position;\n"
   //"gl_Position = projection*view*model*vec4(rot(np,tht)+pos,1.); }\0";
-  "gl_Position = projection*view*model*vec4(position,1.); }\0";
+  "gl_Position = mvp*vec4(position+pos,1.); }\0";
 static const GLchar *dfs = "#version 430\n"
   "out vec4 scolor;\n"
   //"in vec3 frag_norm; in vec3 frag_col;\n"
@@ -46,10 +46,11 @@ static const GLchar *dcs = "#version 430\n"
   "  rand = lcg_rand(rand); float tht = float(rand%360)*3.14159265/180.;\n"
   "  vec4 npos = vec4(0.01*cos(tht),0.01*sin(tht),0.,0.);\n"*/
   "  vec4 cpos = pos[id]; float f_id = id;\n"
-  //"  float r = randv(vec2(f_id/float(gl_NumWorkGroups*gl_WorkGroupSize),seed/2147483647.));\n"
-  "  float r = randv(cpos.xy+vec2(f_id/float(gl_NumWorkGroups*gl_WorkGroupSize),seed/2147483647.));\n"
+  "  float r = randv(vec2(f_id/float(gl_NumWorkGroups*gl_WorkGroupSize),seed/2147483647.));\n"
+  //"  float r = randv(cpos.xy+vec2(f_id/float(gl_NumWorkGroups*gl_WorkGroupSize),seed/2147483647.));\n"
   "  float tht = r*3.14159265*2;\n"
-  "  vec4 npos = vec4(0.03*cos(tht),0.03*sin(tht),0.,0.);\n"
+  "  float phi = r*3.14159265*2;\n"
+  "  vec4 npos = vec4(0.03*cos(tht)*sin(phi),0.03*sin(tht)*sin(phi),0.03*cos(phi),0.);\n"
   "  pos[id] = cpos + npos; }\n";
 
 GLuint create_program(const GLchar *vsh, const GLchar *fsh) { GLuint vs;
@@ -101,12 +102,16 @@ GLuint create_compute_program(const GLchar *csh) { GLuint cs;
 void mvp_set(GLuint prog, glm::mat4 model, glm::mat4 view, glm::mat4 projection) {
   glUseProgram(prog);
 
-  GLint _model = glGetUniformLocation(prog,"model");
+  /*GLint _model = glGetUniformLocation(prog,"model");
   glUniformMatrix4fv(_model,1,GL_FALSE,(const float *)glm::value_ptr(model));
   GLint _view = glGetUniformLocation(prog,"view");
   glUniformMatrix4fv(_view,1,GL_FALSE,(const float *)glm::value_ptr(view));
   GLint _projection = glGetUniformLocation(prog,"projection");
-  glUniformMatrix4fv(_projection,1,GL_FALSE,(const float *)glm::value_ptr(projection)); }
+  glUniformMatrix4fv(_projection,1,GL_FALSE,(const float *)glm::value_ptr(projection));*/
+
+  glm::mat4 mvp = projection*view*model;
+  GLint _mvp = glGetUniformLocation(prog,"mvp");
+  glUniformMatrix4fv(_mvp,1,GL_FALSE,(const float *)glm::value_ptr(mvp)); }
 
 // TODO: generalize.
 void vec_set(GLuint prog, glm::vec3 a, std::string name) {
