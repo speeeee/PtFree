@@ -46,9 +46,10 @@ static const GLchar *dcs = "#version 430\n"
   "  rand = lcg_rand(rand); float tht = float(rand%360)*3.14159265/180.;\n"
   "  vec4 npos = vec4(0.01*cos(tht),0.01*sin(tht),0.,0.);\n"*/
   "  vec4 cpos = pos[id]; float f_id = id;\n"
-  "  float r = randv(vec2(id/float(gl_NumWorkGroups*gl_WorkGroupSize),seed/2000000000.));\n"
+  //"  float r = randv(vec2(f_id/float(gl_NumWorkGroups*gl_WorkGroupSize),seed/2147483647.));\n"
+  "  float r = randv(cpos.xy+vec2(f_id/float(gl_NumWorkGroups*gl_WorkGroupSize),seed/2147483647.));\n"
   "  float tht = r*3.14159265*2;\n"
-  "  vec4 npos = vec4(0.01*cos(tht),0.01*sin(tht),0.,0.);\n"
+  "  vec4 npos = vec4(0.03*cos(tht),0.03*sin(tht),0.,0.);\n"
   "  pos[id] = cpos + npos; }\n";
 
 GLuint create_program(const GLchar *vsh, const GLchar *fsh) { GLuint vs;

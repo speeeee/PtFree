@@ -13,13 +13,14 @@
 #include <cstdio>
 #include <cmath>
 #include <ctime>
+#include <cfloat>
 
 #include "shaders.hpp"
 
 #define PI 3.1415926535
 #define STRIDE (7)
 
-#define PARTICLE_AMT (1504)
+#define PARTICLE_AMT (385024)
 
 #define SAMPLE_RATE (44100)
 #define FRAME_RATE (60)
@@ -51,7 +52,7 @@ glm::mat4 gl_init(sf::Window *window) { glEnable(GL_DEPTH_TEST); glDepthMask(GL_
 void paint(GLuint prog, GLuint compute_prog, int pc, VAOdat vd, GLuint ssbo) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glUseProgram(compute_prog);
-  glDispatchCompute(pc/16,1,1);
+  glDispatchCompute(pc/32,1,1);
   glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
   glUseProgram(prog); glGetError();
   //glBindVertexArray(vd.vao);
