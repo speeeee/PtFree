@@ -73,7 +73,13 @@ void e_call(RtAudioError::Type t, const std::string &errorText) { return; }
 
 void reset_ssbo(int p_amt) {
   V4f *pos_v = (V4f *) glMapBufferRange(GL_SHADER_STORAGE_BUFFER,0,p_amt*sizeof(V4f),GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
-  for(int i=0;i<p_amt;i++) { pos_v[i].pos[0] = pos_v[i].pos[1] = pos_v[i].pos[2] = 0.f; }
+  //for(int i=0;i<p_amt;i++) { pos_v[i].pos[0] = pos_v[i].pos[1] = pos_v[i].pos[2] = pos_v[i].pos[3] = 0.f; }
+  // uses p_amt 385024
+  int i;
+  for(i=400;i<p_amt;i++) { pos_v[i].pos[0] = pos_v[i].pos[2] = pos_v[i].pos[3] = 0.f;
+    pos_v[i].pos[1] = (float)(i-400)*0.01+2; }
+  for(i=0;i<400;i++) { pos_v[i].pos[0] = -2.f+(float)i*0.01;
+    pos_v[i].pos[1] = -4.f; pos_v[i].pos[3] = pos_v[i].pos[4] = 0; }
   glUnmapBuffer(GL_SHADER_STORAGE_BUFFER); }
 
 void report_ssbo(int p_amt) {
@@ -170,6 +176,7 @@ int main() { sf::ContextSettings settings;
   PState s(glm::vec3(0,0,0));
   int t = 0; srand(time(NULL));
   //int_set(default_program,3,"vert_amt");
+  int_set(compute_program,PARTICLE_AMT,"p_amt");
   for(bool r = true;r;t++) {
     sf::Event e; while(window.pollEvent(e)) { if(e.type==sf::Event::Closed) { r=false; } }
     handle_input(s,&view,&model);
@@ -178,6 +185,7 @@ int main() { sf::ContextSettings settings;
     float_set(default_program,atan2(s.head.y,s.head.x),"tht");
     int_set(default_program,time(NULL)+t,"seed");
     float_set(compute_program,(float)(time(NULL)+t),"seed");
+    int_set(compute_program,t,"time");
     paint(default_program,compute_program,PARTICLE_AMT,vd,buf); window.display(); }
   glDeleteVertexArrays(1,&vd.vao);
   return 0; }

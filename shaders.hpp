@@ -36,7 +36,7 @@ static const GLchar *dcs = "#version 430\n"
   "layout (std140, binding = 0) buffer Pos {\n"
   "  vec4 pos[]; };\n"
   "layout (local_size_x = 16) in;\n"
-  "uniform float seed;\n"
+  "uniform float seed; uniform int time; uniform int p_amt;\n"
   "int lcg_rand(int x) { return (x >> 1)^(-(x & 1) & 0x80200003); }\n"
   "float randf(float x) { return fract(sin(x*12.9898)*43758.5453); }\n"
   "float randv(vec2 co) { return fract(sin(dot(co.xy,vec2(12.9898,78.233)))*43758.5453); }\n"
@@ -45,13 +45,18 @@ static const GLchar *dcs = "#version 430\n"
   "  vec4 cpos = pos[id];\n"
   "  rand = lcg_rand(rand); float tht = float(rand%360)*3.14159265/180.;\n"
   "  vec4 npos = vec4(0.01*cos(tht),0.01*sin(tht),0.,0.);\n"*/
-  "  vec4 cpos = pos[id]; float f_id = id;\n"
-  "  float r = randv(vec2(f_id/float(gl_NumWorkGroups*gl_WorkGroupSize),seed/2147483647.));\n"
-  //"  float r = randv(cpos.xy+vec2(f_id/float(gl_NumWorkGroups*gl_WorkGroupSize),seed/2147483647.));\n"
+  /*"  vec4 cpos = pos[id]; float f_id = id;\n"
+  //"  float r = randv(vec2(f_id/float(gl_NumWorkGroups*gl_WorkGroupSize),seed/2147483647.));\n"
+  "  float r = randv(cpos.xy+vec2(f_id/float(gl_NumWorkGroups*gl_WorkGroupSize),seed/2147483647.));\n"
   "  float tht = r*3.14159265*2;\n"
-  "  float phi = r*3.14159265*2;\n"
-  "  vec4 npos = vec4(0.03*cos(tht)*sin(phi),0.03*sin(tht)*sin(phi),0.03*cos(phi),0.);\n"
-  "  pos[id] = cpos + npos; }\n";
+  "  vec4 npos = vec4(0.03*cos(tht),0.03*sin(tht),0.,0.);\n"
+  "  pos[id] = cpos + npos; }\n";*/
+  "  vec4 cpos = pos[id]; float f_id = id;\n"
+  "  float r = randv(cpos.xy+vec2(f_id/float(gl_NumWorkGroups*gl_WorkGroupSize),seed/2147483647.));\n"
+  "  if(cpos.y>2) { pos[id] = cpos-vec4(0.,0.02,0.,0.); }\n"
+  "  else if(cpos.y<=2&&cpos.y>-1) { pos[id] = cpos+vec4(r>0.5?-0.04:0.04,-0.02,0.,0.); }\n"
+  "  else if(id>399) { int b_id = clamp(int((cpos.x+2.)*100.),0,399);\n"
+  "    pos[b_id].y += 0.01; pos[id].y += 5000.; } }\n";
 
 GLuint create_program(const GLchar *vsh, const GLchar *fsh) { GLuint vs;
   vs = glCreateShader(GL_VERTEX_SHADER);
