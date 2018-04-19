@@ -54,8 +54,12 @@ static const GLchar *dcs = "#version 430\n"
   "  vec4 cpos = pos[id]; float f_id = id;\n"
   "  float r = randv(cpos.xy+vec2(f_id/float(gl_NumWorkGroups*gl_WorkGroupSize),seed/2147483647.));\n"
   "  if(cpos.y>2) { pos[id] = cpos-vec4(0.,0.02,0.,0.); }\n"
-  "  else if(cpos.y<=2&&cpos.y>-1) { pos[id] = cpos+vec4(r>0.5?-0.04:0.04,-0.02,0.,0.); }\n"
-  "  else if(id>399) { int b_id = clamp(int((cpos.x+2.)*100.),0,399);\n"
+  //"  else if(cpos.y<=2&&cpos.y>-1) { pos[id] = cpos+vec4(r>0.5?-0.05:0.05,-0.02,0.,0.); }\n"
+  "  else if(cpos.y<=2&&cpos.y>-1) {\n"
+  "    vec2 t = r<0.25?vec2(0.05,0.):r<0.5?vec2(-0.05,0.):r<0.75?vec2(0,0.05):vec2(0,-0.05);\n"
+  "    pos[id].xz += t; pos[id].y -= 0.02; }\n"
+  "  else if(id>6399) { int b_x = clamp(int((cpos.x+2.)*20.),0,79);\n"
+  "    int b_y = clamp(int((cpos.z+2.)*20.),0,79); int b_id = b_x+b_y*80;\n"
   "    pos[b_id].y += 0.01; pos[id].y += 5000.; } }\n";
 
 GLuint create_program(const GLchar *vsh, const GLchar *fsh) { GLuint vs;

@@ -76,10 +76,10 @@ void reset_ssbo(int p_amt) {
   //for(int i=0;i<p_amt;i++) { pos_v[i].pos[0] = pos_v[i].pos[1] = pos_v[i].pos[2] = pos_v[i].pos[3] = 0.f; }
   // uses p_amt 385024
   int i;
-  for(i=400;i<p_amt;i++) { pos_v[i].pos[0] = pos_v[i].pos[2] = pos_v[i].pos[3] = 0.f;
-    pos_v[i].pos[1] = (float)(i-400)*0.01+2; }
-  for(i=0;i<400;i++) { pos_v[i].pos[0] = -2.f+(float)i*0.01;
-    pos_v[i].pos[1] = -4.f; pos_v[i].pos[3] = pos_v[i].pos[4] = 0; }
+  for(i=6400;i<p_amt;i++) { pos_v[i].pos[0] = pos_v[i].pos[2] = pos_v[i].pos[3] = 0.f;
+    pos_v[i].pos[1] = (float)(i-6400)*0.01+2; }
+  for(i=0;i<6400;i++) { pos_v[i].pos[0] = -2.f+(float)(i%80)*0.05;
+    pos_v[i].pos[1] = -4.f; pos_v[i].pos[2] = -2.f+(float)(i/80)*0.05; pos_v[i].pos[3] = 0; }
   glUnmapBuffer(GL_SHADER_STORAGE_BUFFER); }
 
 void report_ssbo(int p_amt) {
